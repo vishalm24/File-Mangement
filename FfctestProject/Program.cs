@@ -1,5 +1,6 @@
 ﻿using ConsoleApp1.Dto;
 using FfctestProject.Models;
+using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.RegularExpressions;
 class Program
@@ -14,20 +15,35 @@ class Program
         var existData = new List<ExnpensesDto>();
         var notExistData = new List<ExpenseReportImage>();
 
-        var expenseEntities = (from eri in context.ExpenseReportImages
-                               join eah in context.ExpenseApprovalHistories
-                                   on eri.ExpenseReportId equals eah.ExpenseReportId
-                               join eda in context.ExpenseDefaultFinanceApprovers
-                                   on eah.UserId equals eda.UserId
-                               select new ExnpensesDto
-                               {
-                                   Id = eri.Id,
-                                   CompanyId = eda.CompanyId,
-                                   ReportId = eri.ExpenseReportId,
-                                   ExistingPath = eri.ImagePath ?? "",
-                                   FullPath = string.Empty,
-                                   CreateDate = eri.CreateDate
-                               }).ToList();
+        var sql = @"
+    SELECT 
+        ISNULL(CAST(ei.Id AS FLOAT), 0) AS Id,
+        ed.CompanyId,
+        ISNULL(ei.ExpenseReportId, ec.ExpenseReportId) AS ReportId,
+        ISNULL(ei.ImagePath, '') AS ExistingPath,
+        ISNULL(ei.CreateDate, CAST('1900-01-01' AS DATETIME)) AS CreateDate
+    FROM ExpenseApprovalHistory ec
+    FULL JOIN ExpenseReportImages ei ON ec.ExpenseReportId = ei.ExpenseReportId
+    FULL JOIN ExpenseDefaultFinanceApprovers ed ON ed.UserId = ec.UserId";
+
+        var rawResults = context.Database
+    .SqlQueryRaw<ExnpensesRawDto>(sql)
+    .ToList();
+
+        var expenseEntities = rawResults.Select(x => new ExnpensesDto
+        {
+            Id = x.Id,
+            CompanyId = x.CompanyId,
+            ReportId = x.ReportId,
+            ExistingPath = x.ExistingPath ?? "",
+            FullPath = string.Empty,
+            NewPath = string.Empty,
+            NewRelativePath = string.Empty,
+            CreateDate = x.CreateDate
+        }).ToList();
+
+
+        Console.WriteLine($"Total entries :{expenseEntities.Count}\n");
 
         foreach (var expense in expenseEntities)
         {
@@ -38,7 +54,7 @@ class Program
 
 
             string TrimedImagePath = Regex.Replace(imagePath, @"\d.*", "");
-            string TrimedImagedate = Regex.Replace(imagePath, @"\D.*", "");
+
 
             string date = $"{expense.CreateDate.Year}-{expense.CreateDate.Month}-{expense.CreateDate.Day}";
 
@@ -93,24 +109,32 @@ class Program
 
         foreach (var a in existData)
         {
-            reportIds.Add(a.ReportId);
+            if (a.ReportId.HasValue)
+            {
+                reportIds.Add(a.ReportId.Value);
+            }
         }
         ;
 
-        var recordsToLog = context.ExpenseReportImages
-            .Where(x => !reportIds.Contains(x.ExpenseReportId))
-            .ToList();
+        var recordsToLog = expenseEntities
+    .Where(x => x.ReportId == null || !reportIds.Contains(x.ReportId.Value))
+    .ToList();
         var sb = new StringBuilder();
-
 
         sb.AppendLine("Records of ExpenseReportImages which are not updated");
         sb.AppendLine("-------------------------------------------------------------------------------");
 
-
         foreach (var record in recordsToLog)
         {
-            var fullPath = Path.GetFullPath(Path.Combine(basePath, record.ImagePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
-            sb.AppendLine($"RecordId: {record.Id}\t ExpenceReportId: {record.ExpenseReportId}\t ImagePath: {record.ImagePath}\tFullPath: {fullPath}\t CreateDate:  {record.CreateDate:yyyy-MM-dd}");
+            var isEmptyOrNullPath = string.IsNullOrWhiteSpace(record.ExistingPath);
+            var existingPath = isEmptyOrNullPath ? "Null" : record.ExistingPath;
+
+            var fullPath = isEmptyOrNullPath
+                ? "Null"
+                : Path.GetFullPath(Path.Combine(basePath, record.ExistingPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
+
+            sb.AppendLine($"RecordId: {record.Id}\t ExpenseReportId: {record.ReportId}\t ImagePath: {existingPath}\t FullPath: {fullPath}\t CreateDate: {record.CreateDate:yyyy-MM-dd}");
+
         }
 
 
@@ -119,17 +143,8 @@ class Program
 
         await context.SaveChangesAsync();
 
+        Console.WriteLine($"Logged {recordsToLog.Count} records with missing data to: {logFilePath}");
 
-        Console.WriteLine($"Logged {recordsToLog.Count} records to: {logFilePath}");
 
-        Console.WriteLine("Entries with missing or empty image paths:\n");
-        foreach (var data in notExistData)
-        {
-            Console.WriteLine($"Id: {data.Id}");
-            Console.WriteLine($"ReportId: {data.ExpenseReportId}");
-            Console.WriteLine($"Date: {data.CreateDate:yyyy-MM-dd}");
-            Console.WriteLine($"OldRelative path: {data.ImagePath}");
-            Console.WriteLine();
-        }
     }
 }

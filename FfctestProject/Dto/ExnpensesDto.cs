@@ -4,7 +4,7 @@
     {
         public double Id { get; set; }
         public int? CompanyId { get; set; }
-        public int ReportId { get; set; }
+        public int? ReportId { get; set; }
         public string ExistingPath { get; set; }
         public string FullPath { get; set; } = null!;
         public string NewPath { get; set; } = null!;
