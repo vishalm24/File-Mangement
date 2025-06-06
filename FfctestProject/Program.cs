@@ -3,6 +3,7 @@ using FfctestProject.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 using System.Text.RegularExpressions;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 class Program
 {
     static async Task Main(string[] args)
@@ -16,15 +17,15 @@ class Program
         var notExistData = new List<ExpenseReportImage>();
 
         var sql = @"
-    SELECT 
-        ISNULL(CAST(ei.Id AS FLOAT), 0) AS Id,
-        ed.CompanyId,
-        ISNULL(ei.ExpenseReportId, ec.ExpenseReportId) AS ReportId,
-        ISNULL(ei.ImagePath, '') AS ExistingPath,
-        ISNULL(ei.CreateDate, CAST('1900-01-01' AS DATETIME)) AS CreateDate
-    FROM ExpenseApprovalHistory ec
-    FULL JOIN ExpenseReportImages ei ON ec.ExpenseReportId = ei.ExpenseReportId
-    FULL JOIN ExpenseDefaultFinanceApprovers ed ON ed.UserId = ec.UserId";
+                    SELECT 
+                        ISNULL(CAST(ei.Id AS FLOAT), 0) AS Id,
+                        ed.CompanyId,
+                        ISNULL(ei.ExpenseReportId, ec.ExpenseReportId) AS ReportId,
+                        ISNULL(ei.ImagePath, '') AS ExistingPath,
+                        ISNULL(ei.CreateDate, CAST('1900-01-01' AS DATETIME)) AS CreateDate
+                    FROM ExpenseApprovalHistory ec
+                    FULL JOIN ExpenseReportImages ei ON ec.ExpenseReportId = ei.ExpenseReportId
+                    FULL JOIN ExpenseDefaultFinanceApprovers ed ON ed.UserId = ec.UserId";
 
         var rawResults = context.Database
     .SqlQueryRaw<ExnpensesRawDto>(sql)
@@ -75,12 +76,20 @@ class Program
 
             if (hasValidPath && expense.CompanyId != null)
                 existData.Add(dto);
-
         }
 
         Console.WriteLine("Entries with valid image paths:\n");
         foreach (var data in existData)
         {
+            if (File.Exists(data.FullPath))
+            {
+                string targetDirectory = Path.GetDirectoryName(data.NewPath);
+                if (!Directory.Exists(targetDirectory))
+                    Directory.CreateDirectory(targetDirectory);
+
+                File.Move(data.FullPath, data.NewPath, true);
+            }
+
             Console.WriteLine($"Id: {data.Id}");
             Console.WriteLine($"CompanyId: {data.CompanyId}");
             Console.WriteLine($"ReportId: {data.ReportId}");
@@ -114,7 +123,7 @@ class Program
                 reportIds.Add(a.ReportId.Value);
             }
         }
-        ;
+                        ;
 
         var recordsToLog = expenseEntities
     .Where(x => x.ReportId == null || !reportIds.Contains(x.ReportId.Value))
