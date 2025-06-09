@@ -18,7 +18,7 @@ class Program
 
         var sql = @"
                     SELECT 
-                        ISNULL(CAST(ei.Id AS FLOAT), 0) AS Id,
+                        ISNULL(CAST(ei.Id AS FLOAT), 0) AS Id, 
                         ed.CompanyId,
                         ISNULL(ei.ExpenseReportId, ec.ExpenseReportId) AS ReportId,
                         ISNULL(ei.ImagePath, '') AS ExistingPath,
