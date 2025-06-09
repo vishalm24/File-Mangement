@@ -12,7 +12,7 @@ class Program
 
         string path = AppContext.BaseDirectory;
         string basePath = path.Substring(0, path.Length - 1);
-
+        
         var existData = new List<ExnpensesDto>();
         var notExistData = new List<ExpenseReportImage>();
 
@@ -50,15 +50,9 @@ class Program
         {
             var imagePath = expense.ExistingPath;
             var imageFilename = Path.GetFileName(imagePath);
-
             bool hasValidPath = !string.IsNullOrWhiteSpace(imagePath);
-
-
             string TrimedImagePath = Regex.Replace(imagePath, @"\d.*", "");
-
-
-            string date = $"{expense.CreateDate.Year}-{expense.CreateDate.Month}-{expense.CreateDate.Day}";
-
+            string date = expense.CreateDate.ToString("yyyy-MM-dd");
 
             var dto = new ExnpensesDto
             {
@@ -67,10 +61,10 @@ class Program
                 ExistingPath = imagePath ?? string.Empty,
                 ReportId = expense.ReportId,
                 FullPath = hasValidPath
-                    ? Path.GetFullPath(Path.Combine(basePath, imagePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)))
+                    ? Path.GetFullPath(Path.Combine(basePath, imagePath.Substring("/API/".Length).Replace('/', Path.DirectorySeparatorChar)))
                     : string.Empty,
                 CreateDate = expense.CreateDate,
-                NewPath = ($"{basePath}{TrimedImagePath}{expense.CompanyId}\\{expense.ReportId}\\{date}\\{imageFilename}").Replace('/', '\\'),
+                NewPath = ($"{basePath}{TrimedImagePath.Replace("/API/", "/")}{expense.CompanyId}\\{expense.ReportId}\\{date}\\{imageFilename}").Replace('/', '\\'),
                 NewRelativePath = ($"{TrimedImagePath}{expense.CompanyId}\\{expense.ReportId}\\{date}\\{imageFilename}").Replace('\\', '/')
             };
 
