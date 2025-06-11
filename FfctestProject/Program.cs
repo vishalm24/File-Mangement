@@ -32,16 +32,26 @@ class Program
             var existData = new List<ExnpensesDto>();
             var notExistData = new List<ExpenseReportImage>();
 
+            //var sql = @"
+            //                SELECT 
+            //                    ISNULL(CAST(ei.Id AS FLOAT), 0) AS Id, 
+            //                    ed.CompanyId,
+            //                    ISNULL(ei.ExpenseReportId, ec.ExpenseReportId) AS ReportId,
+            //                    ISNULL(ei.ImagePath, '') AS ExistingPath,
+            //                    ISNULL(ei.CreateDate, CAST('1900-01-01' AS DATETIME)) AS CreateDate
+            //                FROM ExpenseApprovalHistory ec
+            //                FULL JOIN ExpenseReportImages ei ON ec.ExpenseReportId = ei.ExpenseReportId
+            //                FULL JOIN ExpenseDefaultFinanceApprovers ed ON ed.UserId = ec.UserId";
             var sql = @"
-                            SELECT 
-                                ISNULL(CAST(ei.Id AS FLOAT), 0) AS Id, 
-                                ed.CompanyId,
-                                ISNULL(ei.ExpenseReportId, ec.ExpenseReportId) AS ReportId,
-                                ISNULL(ei.ImagePath, '') AS ExistingPath,
-                                ISNULL(ei.CreateDate, CAST('1900-01-01' AS DATETIME)) AS CreateDate
-                            FROM ExpenseApprovalHistory ec
-                            FULL JOIN ExpenseReportImages ei ON ec.ExpenseReportId = ei.ExpenseReportId
-                            FULL JOIN ExpenseDefaultFinanceApprovers ed ON ed.UserId = ec.UserId";
+                        SELECT
+                            ISNULL(CAST(cti.Id AS FLOAT), 0) AS Id,
+                            cmr.ShopId AS CompanyId,
+                            cti.LeadTransactionId AS LeadTransactionId,
+                            ISNULL(cti.ImagePath, '') AS ImagePath,
+                            ISNULL(cti.CreateDate, CAST('1900-01-01' AS DATETIME)) AS CreateDate
+                        FROM CRMLeadTransactionImages cti
+                        LEFT JOIN CRMLeadTransaction ct ON ct.Id = cti.LeadTransactionId
+                        LEFT JOIN CompanyMemberRoleMapping cmr ON cmr.UserId = ct.UserId";
 
             var rawResults = context.Database.SqlQueryRaw<ExnpensesRawDto>(sql).ToList();
 
@@ -155,7 +165,7 @@ class Program
 
             Console.WriteLine($"Logged {recordsToLog.Count} records with missing data to: {logFilePath}");
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             Console.WriteLine("An unexpected error occurred:");
             Console.WriteLine(ex.Message);
