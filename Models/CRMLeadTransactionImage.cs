@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace FfctestProject.Models
 {
-    [Table("CRMLeadTransactionImages")]
     public partial class CRMLeadTransactionImage
     {
         public int Id { get; set; }

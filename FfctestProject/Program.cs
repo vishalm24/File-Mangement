@@ -32,6 +32,7 @@ class Program
             var existData = new List<ExnpensesDto>();
             var notExistData = new List<ExpenseReportImage>();
 
+
             //var sql = @"
             //                SELECT 
             //                    ISNULL(CAST(ei.Id AS FLOAT), 0) AS Id, 
@@ -43,15 +44,18 @@ class Program
             //                FULL JOIN ExpenseReportImages ei ON ec.ExpenseReportId = ei.ExpenseReportId
             //                FULL JOIN ExpenseDefaultFinanceApprovers ed ON ed.UserId = ec.UserId";
             var sql = @"
-                        SELECT
-                            ISNULL(CAST(cti.Id AS FLOAT), 0) AS Id,
-                            cmr.ShopId AS CompanyId,
-                            cti.LeadTransactionId AS LeadTransactionId,
-                            ISNULL(cti.ImagePath, '') AS ImagePath,
-                            ISNULL(cti.CreateDate, CAST('1900-01-01' AS DATETIME)) AS CreateDate
-                        FROM CRMLeadTransactionImages cti
-                        LEFT JOIN CRMLeadTransaction ct ON ct.Id = cti.LeadTransactionId
-                        LEFT JOIN CompanyMemberRoleMapping cmr ON cmr.UserId = ct.UserId";
+                            SELECT
+                                u.UserId AS Id,
+                                cmr.ShopId AS CompanyId,
+                                u.UserId AS ReportId,
+                                CASE
+                                    WHEN u.UserImage IS NULL OR u.UserImage = 'NA' OR u.UserImage = '' THEN ''
+                                    WHEN u.UserImage NOT LIKE 'Images/UserProfileImage/%' OR u.UserImage NOT LIKE '%API/%' THEN '/API/Images/UserProfileImage/'+u.UserImage
+		                            ELSE ''
+                                END AS ExistingPath,
+                            ISNULL(u.CreatedDate, CAST('1900-01-01' AS DATETIME)) AS CreateDate
+                            FROM [User] u
+                            LEFT JOIN CompanyMemberRoleMapping cmr ON cmr.UserId = u.UserId;";
 
             var rawResults = context.Database.SqlQueryRaw<ExnpensesRawDto>(sql).ToList();
 
@@ -95,6 +99,8 @@ class Program
                     existData.Add(dto);
             }
 
+            var notExist = new List<ExnpensesDto>();
+
             Console.WriteLine("Entries with valid image paths:\n");
             foreach (var data in existData)
             {
@@ -102,31 +108,41 @@ class Program
                 {
                     string targetDirectory = Path.GetDirectoryName(data.NewPath);
                     if (!Directory.Exists(targetDirectory))
+                    {
                         Directory.CreateDirectory(targetDirectory);
-
+                        Console.WriteLine("Target Directory: " + targetDirectory);
+                    }
                     File.Move(data.FullPath, data.NewPath, true);
+                    Console.WriteLine("File moved successfully.");
+                    Console.WriteLine($"Id: {data.Id}");
+                    Console.WriteLine($"CompanyId: {data.CompanyId}");
+                    Console.WriteLine($"ReportId: {data.ReportId}");
+                    Console.WriteLine($"Date: {data.CreateDate:yyyy-MM-dd}");
+                    Console.WriteLine($"Relative path: {data.ExistingPath}");
+                    Console.WriteLine("FullPath: " + data.FullPath);
+                    Console.WriteLine("NewPath: " + data.NewPath);
+                    Console.WriteLine($"NewRelativePath : {data.NewRelativePath}");
                 }
-
-                Console.WriteLine($"Id: {data.Id}");
-                Console.WriteLine($"CompanyId: {data.CompanyId}");
-                Console.WriteLine($"ReportId: {data.ReportId}");
-                Console.WriteLine($"Date: {data.CreateDate:yyyy-MM-dd}");
-                Console.WriteLine($"Relative path: {data.ExistingPath}");
-                Console.WriteLine($"Absolute path: {data.FullPath}");
-                Console.WriteLine($"NewPath : {data.NewPath}");
-                Console.WriteLine($"NewRelativePath : {data.NewRelativePath}");
-
+                else
+                {
+                    notExist.Add(data);
+                }
+                //Console.WriteLine($"Absolute path: {data.FullPath}");
+                //Console.WriteLine($"NewPath : {data.NewPath}");
                 Console.WriteLine();
             }
 
-            var oldDatereportdata = context.ExpenseReportImages;
+            var oldDatereportdata = context.Users;
 
             foreach (var data in existData)
             {
-                var FoundData = oldDatereportdata.FirstOrDefault(u => u.ExpenseReportId == data.ReportId);
-                if (FoundData != null)
+                if (File.Exists(data.NewPath))
                 {
-                    FoundData.ImagePath = data.NewRelativePath;
+                    var FoundData = oldDatereportdata.FirstOrDefault(u => u.UserId == data.Id);
+                    if (FoundData != null)
+                    {
+                        FoundData.UserImage = data.NewRelativePath;
+                    }
                 }
             }
 
@@ -143,7 +159,8 @@ class Program
             var recordsToLog = expenseEntities.Where(x => x.ReportId == null || !reportIds.Contains(x.ReportId.Value)).ToList();
             var sb = new StringBuilder();
 
-            sb.AppendLine("Records of ExpenseReportImages which are not updated");
+            sb.AppendLine("\nRecords of User which are not updated\n");
+            sb.AppendLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             sb.AppendLine("-------------------------------------------------------------------------------");
 
             foreach (var record in recordsToLog)
@@ -155,21 +172,46 @@ class Program
                     ? "Null"
                     : Path.GetFullPath(Path.Combine(basePath, record.ExistingPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
 
-                sb.AppendLine($"RecordId: {record.Id}\t ExpenseReportId: {record.ReportId}\t ImagePath: {existingPath}\t FullPath: {fullPath}\t CreateDate: {record.CreateDate:yyyy-MM-dd}");
+                sb.AppendLine($"RecordId: {record.Id}\t ImagePath: {existingPath}\t FullPath: {fullPath}\t CreateDate: {record.CreateDate:yyyy-MM-dd}");
             }
 
-            string logFilePath = Path.Combine(AppContext.BaseDirectory, "MissingReportIds.txt");
-            File.WriteAllText(logFilePath, sb.ToString());
+            sb.AppendLine("\nRecords of User ImagePath does not exist");
+            sb.AppendLine("-------------------------------------------------------------------------------");
 
-            await context.SaveChangesAsync();
+            foreach (var record in notExist)
+            {
+                sb.AppendLine($"RecordId: {record.Id}\t ImagePath: {record.ExistingPath}\t FullPath: {record.FullPath}\t CreateDate: {record.CreateDate:yyyy-MM-dd}");
+            }
+
+            string logFilePath = Path.Combine(AppContext.BaseDirectory, "MissingUser.txt");
+            //File.WriteAllText(logFilePath, sb.ToString());
+            File.AppendAllText(logFilePath, sb.ToString());
+
+            var flag = false;
+            foreach (var item in existData)
+            {
+                if (File.Exists(item.NewPath))
+                {
+                    flag = true;
+                }
+
+                await context.SaveChangesAsync();
+            }
+
+            
 
             Console.WriteLine($"Logged {recordsToLog.Count} records with missing data to: {logFilePath}");
+            Console.WriteLine("Press enter to continue");
+            Console.ReadLine();
         }
         catch (Exception ex)
         {
+            string tableName = "User";
             Console.WriteLine("An unexpected error occurred:");
             Console.WriteLine(ex.Message);
-            File.WriteAllText("UnhandledExceptionLog.txt", ex.ToString());
+            File.AppendAllText("UnhandledExceptionLog.txt", $"Table: {tableName}\n");
+            File.AppendAllText("UnhandledExceptionLog.txt", ex.ToString());
+            Console.ReadLine();
         }
     }
 }

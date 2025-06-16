@@ -2,7 +2,7 @@
 {
     class ExnpensesDto
     {
-        public double Id { get; set; }
+        public int Id { get; set; }
         public int? CompanyId { get; set; }
         public int? ReportId { get; set; }
         public string ExistingPath { get; set; }
