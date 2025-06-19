@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.RegularExpressions;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 class Program
 {
@@ -132,141 +133,43 @@ class Program
 
             sb.AppendLine("When Image exist in the directory. But not in the database.\n");
 
+            //Commented code for moving files to a new directory.
+            //var newDirectory = AppContext.BaseDirectory + $"MissingImagesInDB\\{tableName}\\";
+            //if (!Directory.Exists(newDirectory))
+            //{
+            //    Directory.CreateDirectory(newDirectory);
+
+            //}
+            //Console.WriteLine("Target Directory: " + newDirectory);
+            //var count = 0;
+            //var count1 = 0;
+
             foreach (var item in apiPaths)
             {
                 if(context.CRMLeadTransactionImages.Any(x => x.ImagePath == item))
                     continue;
-                var fullPath= AppContext.BaseDirectory+item.Replace("/API/", "").Replace("/","\\");
+                var fullPath= AppContext.BaseDirectory + item.Replace("/API/", "").Replace("/","\\");
                 sb.AppendLine($"Full path : {fullPath}\t ReativePath :{item}");
+
+                //Commented code for moving files to a new directory.
+                //var fileName = Path.GetFileName(fullPath);
+                //var newPath = AppContext.BaseDirectory + $"MissingImagesInDB\\{tableName}\\{fileName}";
+                ////File.Move(fullPath, newPath, true);
+                //File.Copy(fullPath, newPath, true);
+                //Console.WriteLine($"\nFile copied sucessfully...\nNew path: {newPath}\nOld Path: {fullPath}");
+                //if(File.Exists(newPath))
+                //{
+                //    count1++;
+                //}
+                //count++;
             }
+            //Commented code for moving files to a new directory.
+            //Console.WriteLine($"\nTotal files: {count}\n");
+            //Console.WriteLine($"Total files copied with new path: {count1}\n");
             Console.WriteLine($"File Path: {tableName}MissingImagePathData.txt");
-
             File.WriteAllText(logPath, sb.ToString());
+
             Console.ReadLine();
-
-
-
-            //Console.WriteLine($"Total entries :{expenseEntities.Count}\n");
-
-            //foreach (var expense in expenseEntities)
-            //{
-            //    var imagePath = expense.ExistingPath;
-            //    var imageFilename = Path.GetFileName(imagePath);
-            //    bool hasValidPath = !string.IsNullOrWhiteSpace(imagePath);
-            //    string TrimedImagePath = Regex.Replace(imagePath, @"\d.*", "");
-            //    string date = expense.CreateDate.ToString("yyyy-MM-dd");
-
-            //    var dto = new ExnpensesDto
-            //    {
-            //        Id = expense.Id,
-            //        CompanyId = expense.CompanyId,
-            //        ExistingPath = imagePath ?? string.Empty,
-            //        ReportId = expense.ReportId,
-            //        FullPath = hasValidPath
-            //            ? Path.GetFullPath(Path.Combine(basePath, imagePath.Substring("/API/".Length).Replace('/', Path.DirectorySeparatorChar)))
-            //            : string.Empty,
-            //        CreateDate = expense.CreateDate,
-            //        NewPath = ($"{basePath}{TrimedImagePath.Replace("/API/", "/")}{expense.CompanyId}\\{expense.ReportId}\\{date}\\{imageFilename}").Replace('/', '\\'),
-            //        NewRelativePath = ($"{TrimedImagePath}{expense.CompanyId}\\{expense.ReportId}\\{date}\\{imageFilename}").Replace('\\', '/')
-            //    };
-
-            //    if (hasValidPath && expense.CompanyId != null)
-            //        existData.Add(dto);
-            //}
-
-            //var notExist = new List<ExnpensesDto>();
-
-            //Console.WriteLine("Entries with valid image paths:\n");
-            //foreach (var data in existData)
-            //{
-            //    if (File.Exists(data.FullPath))
-            //    {
-            //        string targetDirectory = Path.GetDirectoryName(data.NewPath);
-            //        if (!Directory.Exists(targetDirectory))
-            //        {
-            //            Directory.CreateDirectory(targetDirectory);
-            //            Console.WriteLine("Target Directory: " + targetDirectory);
-            //        }
-            //        File.Move(data.FullPath, data.NewPath, true);
-            //        Console.WriteLine("File moved successfully.");
-            //        Console.WriteLine($"Id: {data.Id}");
-            //        Console.WriteLine($"CompanyId: {data.CompanyId}");
-            //        Console.WriteLine($"ReportId: {data.ReportId}");
-            //        Console.WriteLine($"Date: {data.CreateDate:yyyy-MM-dd}");
-            //        Console.WriteLine($"Relative path: {data.ExistingPath}");
-            //        Console.WriteLine("FullPath: " + data.FullPath);
-            //        Console.WriteLine("NewPath: " + data.NewPath);
-            //        Console.WriteLine($"NewRelativePath : {data.NewRelativePath}");
-            //    }
-            //    else
-            //    {
-            //        notExist.Add(data);
-            //    }
-            //    //Console.WriteLine($"Absolute path: {data.FullPath}");
-            //    //Console.WriteLine($"NewPath : {data.NewPath}");
-            //    Console.WriteLine();
-            //}
-
-            //var oldDatereportdata = context.CRMLeadTransactionImages;
-
-            //foreach (var data in existData)
-            //{
-            //    if (File.Exists(data.NewPath))
-            //    {
-            //        var FoundData = oldDatereportdata.FirstOrDefault(u => u.Id == data.Id);
-            //        if (FoundData != null)
-            //        {
-            //            FoundData.ImagePath = data.NewRelativePath;
-            //        }
-            //    }
-            //}
-
-            //List<int> reportIds = new List<int>();
-
-            //foreach (var a in existData)
-            //{
-            //    if (a.ReportId.HasValue)
-            //    {
-            //        reportIds.Add(a.ReportId.Value);
-            //    }
-            //};
-
-            //var recordsToLog = expenseEntities.Where(x => x.ReportId == null || !reportIds.Contains(x.ReportId.Value)).ToList();
-            //var sb = new StringBuilder();
-
-            //sb.AppendLine("Records of CRMLeadTransactionImages which are not updated\n");
-            //sb.AppendLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-            //sb.AppendLine("-------------------------------------------------------------------------------");
-
-            //foreach (var record in recordsToLog)
-            //{
-            //    var isEmptyOrNullPath = string.IsNullOrWhiteSpace(record.ExistingPath);
-            //    var existingPath = isEmptyOrNullPath ? "Null" : record.ExistingPath;
-
-            //    var fullPath = isEmptyOrNullPath
-            //        ? "Null"
-            //        : Path.GetFullPath(Path.Combine(basePath, record.ExistingPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
-
-            //    sb.AppendLine($"RecordId: {record.Id}\t LeadTransactionId: {record.ReportId}\t ImagePath: {existingPath}\t FullPath: {fullPath}\t CreateDate: {record.CreateDate:yyyy-MM-dd}");
-            //}
-
-            //sb.AppendLine("\nRecords of CRMLeadTransactionImages ImagePath does not exist");
-            //sb.AppendLine("-------------------------------------------------------------------------------");
-
-            //foreach (var record in notExist)
-            //{
-            //    sb.AppendLine($"RecordId: {record.Id}\t LeadTransactionId: {record.ReportId}\t ImagePath: {record.ExistingPath}\t FullPath: {record.FullPath}\t CreateDate: {record.CreateDate:yyyy-MM-dd}");
-            //}
-
-            //string logFilePath = Path.Combine(AppContext.BaseDirectory, "MissingCRMLeadTransactionImages.txt");
-            ////File.WriteAllText(logFilePath, sb.ToString());
-            //File.AppendAllText(logFilePath, sb.ToString());
-
-            //await context.SaveChangesAsync();
-
-            //Console.WriteLine($"Logged {recordsToLog.Count} records with missing data to: {logFilePath}");
-            //Console.WriteLine("Press enter to continue");
-            //Console.ReadLine();
         }
         catch (Exception ex)
         {
