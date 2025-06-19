@@ -1,8 +1,10 @@
 ﻿using ConsoleApp1.Dto;
 using FfctestProject.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -104,76 +106,42 @@ class Program
             if (!Directory.Exists(pathDirectory))
             {
                 Directory.CreateDirectory(pathDirectory);
-                Console.WriteLine("Path Directory: " + pathDirectory);
             }
 
-            var imageFiles = Directory.GetFiles(AppContext.BaseDirectory + "Images\\LRM", "*.*", SearchOption.AllDirectories);
-            //foreach(var item in imageFiles)
-            //{
-            //    item = item.Replace(AppContext.BaseDirectory, "\\API\\");
-            //    item = item.Replace('\\', '/');
-            //}
+            Console.WriteLine($"Path Directory: {pathDirectory}\n");
 
+            //When CompanyId is missing.
+            var logPath = Path.Combine(pathDirectory, $"{tableName}CompanyIdData.txt");
+            SavingFiles(missingCompanyId, $"{tableName}CompanyIdData.txt", logPath, "When CompanyId is missing.");
+
+            //When ImagePath is missing.
+            logPath = Path.Combine(pathDirectory, $"{tableName}MissingImagePathData.txt");
+            SavingFiles(missingImagePath, $"{tableName}MissingImagePathData.txt", logPath, "When ImagePath is missing.");
+
+            //When ImagePath is null or empty.
+            logPath = Path.Combine(pathDirectory, $"{tableName}ImagePathNull.txt");
+            SavingFiles(imagePathNull, $"{tableName}ImagePathNull.txt", logPath, "When ImagePath is null or empty.");
+
+            //When Image exist in the directory. But not in the database.
+            Console.WriteLine("Saving file... When Image exist in the directory. But not in the database.");
+            var imageFiles = Directory.GetFiles(AppContext.BaseDirectory + "Images\\LRM", "*.*", SearchOption.AllDirectories);
             var apiPaths = imageFiles.Select(path => path.Replace(AppContext.BaseDirectory, "/API/").Replace('\\', '/')).ToList();
 
-            //For saving missing company id.
             var sb = new StringBuilder();
-            var logPathCompany = Path.Combine(pathDirectory, $"{tableName}CompanyIdData.txt");
+            logPath = Path.Combine(pathDirectory, $"{tableName}MissingImagePathInDB.txt");
 
-            sb.AppendLine($"Records of {tableName} with missing CompanyId\n");
-
-            foreach (var item in missingCompanyId)
-            {
-                sb.AppendLine($"Id: {item.Id}\t LeadTransactionId: {item.ReportId}\t ImagePath: {item.ExistingPath}\t FullPath: {item.FullPath}\t CreateDate: {item.CreateDate:yyyy-MM-dd}");
-            }
-            Console.WriteLine($"Saved missing company id data. TableName: {tableName} File Name: {tableName}CompanyIdData.txt");
-
-            File.WriteAllText(logPathCompany, sb.ToString());
-
-            //For saving missing file.
-            var sb1 = new StringBuilder();
-            var logPathImage = Path.Combine(pathDirectory, $"{tableName}MissingImagePathData.txt");
-
-            sb1.AppendLine($"Records of {tableName} with missing ImagePath\n");
-
-            foreach (var item in missingImagePath)
-            {
-                sb1.AppendLine($"Id: {item.Id}\t CompanyId: {item.CompanyId}\t LeadTransactionId: {item.ReportId}\t ImagePath: {item.ExistingPath}\t FullPath: {item.FullPath}\t CreateDate: {item.CreateDate:yyyy-MM-dd}");
-            }
-            Console.WriteLine($"Saved missing files data. TableName: {tableName} File Path: {tableName}MissingImagePathData.txt");
-
-            File.WriteAllText(logPathImage, sb1.ToString());
-
-            //For saving missing ImagePath is Null.
-            var sb2 = new StringBuilder();
-            var logNullImage = Path.Combine(pathDirectory, $"{tableName}ImagePathNull.txt");
-
-            sb2.AppendLine($"Records of {tableName} with missing CompanyId\n");
-
-            foreach (var item in imagePathNull)
-            {
-                sb2.AppendLine($"Id: {item.Id}\t CompanyId: {item.CompanyId}\t LeadTransactionId: {item.ReportId}\t ImagePath: {item.ExistingPath}\t FullPath: {item.FullPath}\t CreateDate: {item.CreateDate:yyyy-MM-dd}");
-            }
-            Console.WriteLine($"Saved missing company id data. TableName: {tableName} File Path: {tableName}ImagePathNull.txt");
-
-            File.WriteAllText(logNullImage, sb2.ToString());
-
-            //For saving missing file.
-            var sb3 = new StringBuilder();
-            var logPathDB = Path.Combine(pathDirectory, $"{tableName}MissingImagePathInDB.txt");
-
-            sb3.AppendLine($"Records of {tableName} with missing ImagePath\n");
+            sb.AppendLine("When Image exist in the directory. But not in the database.\n");
 
             foreach (var item in apiPaths)
             {
                 if(context.CRMLeadTransactionImages.Any(x => x.ImagePath == item))
                     continue;
                 var fullPath= AppContext.BaseDirectory+item.Replace("/API/", "").Replace("/","\\");
-                sb3.AppendLine($"Full path : {fullPath}  reativePath :{item}");
+                sb.AppendLine($"Full path : {fullPath}\t ReativePath :{item}");
             }
-            Console.WriteLine($"Saved missing files data. TableName: {tableName} File Path: {tableName}MissingImagePathData.txt");
+            Console.WriteLine($"File Path: {tableName}MissingImagePathData.txt");
 
-            File.WriteAllText(logPathDB, sb3.ToString());
+            File.WriteAllText(logPath, sb.ToString());
             Console.ReadLine();
 
 
@@ -309,5 +277,20 @@ class Program
             File.AppendAllText("UnhandledExceptionLog.txt", ex.ToString());
             Console.ReadLine();
         }
+    }
+    public static void SavingFiles(List<ExnpensesDto> missingData, string fileName, string logPath, string message)
+    {
+        Console.WriteLine($"Saving file... {message}");
+        var sb = new StringBuilder();
+
+        sb.AppendLine(message);
+
+        foreach (var item in missingData)
+        {
+            sb.AppendLine($"Id: {item.Id}\t CompanyId {item.CompanyId}\t LeadTransactionId: {item.ReportId}\t ImagePath: {item.ExistingPath}\t FullPath: {item.FullPath}\t CreateDate: {item.CreateDate:yyyy-MM-dd}");
+        }
+        Console.WriteLine($"File Name: {fileName}\n");
+
+        File.WriteAllText(logPath, sb.ToString());
     }
 }
